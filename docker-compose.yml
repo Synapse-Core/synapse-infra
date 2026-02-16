@@ -36,7 +36,9 @@ services:
       - "6379:6379"
     networks:
       - synapse-net
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+    volumes:
+      - ./redis-data:/data
 
   # --- VAULT (Gestión de Secretos) ---
   vault:
@@ -45,7 +47,7 @@ services:
     ports:
       - "8200:8200"
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: "synapse-master-token"
+      VAULT_DEV_ROOT_TOKEN_ID: "${VAULT_TOKEN}"
       VAULT_ADDR: "http://0.0.0.0:8200"
       VAULT_UI: "true" # Activa la interfaz gráfica
     cap_add:
