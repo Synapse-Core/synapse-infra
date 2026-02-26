@@ -1,0 +1,69 @@
+name: synapse-prod
+
+services:
+  # === KAFKA (Producción con KRaft) ===
+  kafka:
+    image: apache/kafka:4.2.0
+    container_name: synapse-kafka-prod
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@synapse-kafka-prod:9094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Listeners optimizados:
+      # 9092 para acceso externo si es necesario, 29092 para la red interna de Railway
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9094,INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${RAILWAY_PUBLIC_DOMAIN:-localhost}:9092,INTERNAL://synapse-kafka-prod:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+      # Configuraciones de robustez para Prod
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false" # En prod es mejor crear los topics manualmente o via código
+      KAFKA_LOG_RETENTION_HOURS: 168 # 1 semana de retención
+    volumes:
+      - kafka_prod_data:/var/lib/kafka/data
+    networks:
+      - synapse-net-prod
+
+  # === REDIS (Con persistencia y seguridad) ===
+  redis:
+    image: redis:7.4-alpine
+    container_name: synapse-redis-prod
+    command: >
+      redis-server 
+      --requirepass ${REDIS_PASSWORD} 
+      --appendonly yes 
+      --maxmemory 512mb 
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - synapse-net-prod
+
+  # === VAULT (Modo persistente para producción) ===
+  vault:
+    image: hashicorp/vault:1.18
+    container_name: synapse-vault-prod
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN}
+      VAULT_ADDR: http://0.0.0.0:8200
+      VAULT_UI: "true"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault_prod_data:/vault/file
+    networks:
+      - synapse-net-prod
+
+volumes:
+  kafka_prod_data:
+  redis_prod_data:
+  vault_prod_data:
+
+networks:
+  synapse-net-prod:
+    name: synapse-net-prod
+    driver: bridge

@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 5s # Intervalo corto para detectar picos en el login
+
+scrape_configs:
+  - job_name: 'synapse-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['synapse-gateway:8080'] # Si corres el gateway fuera de Docker
+        # Si corres el gateway en Docker, usa: ['gateway-service:8080']
+
+  - job_name: 'synapse-iam'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['synapse-iam:8081'] # Ajusta al puerto de tu IAM
