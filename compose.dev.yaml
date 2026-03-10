@@ -64,6 +64,8 @@ services:
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-root}
       VAULT_ADDR: http://0.0.0.0:8200
+    volumes:
+      - vault-data:/vault/file
     cap_add:
       - IPC_LOCK
     networks:
@@ -99,6 +101,7 @@ services:
       - synapse-net
 
 volumes:
+  vault-data:
   kafka-data:
   redis-data:
   grafana-data:
