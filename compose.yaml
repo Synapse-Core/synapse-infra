@@ -5,6 +5,7 @@ services:
   kafka:
     image: apache/kafka:4.2.0
     container_name: synapse-kafka-prod
+    restart: always
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -32,6 +33,7 @@ services:
   redis:
     image: redis:7.4-alpine
     container_name: synapse-redis-prod
+    restart: always
     command: >
       redis-server 
       --requirepass ${REDIS_PASSWORD} 
@@ -47,6 +49,7 @@ services:
   vault:
     image: hashicorp/vault:1.18
     container_name: synapse-vault-prod
+    restart: always
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN}
       VAULT_ADDR: http://0.0.0.0:8200

@@ -6,3 +6,4 @@ Thumbs.db
 .env
 *.env
 dump.rdb
+setup_dev_secrets.sh
