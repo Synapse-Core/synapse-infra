@@ -31,8 +31,8 @@ services:
           memory: 1536M
     networks:
       synapse-net:
-        - aliases:
-            - synapse-kafka
+        aliases:
+          - synapse-kafka
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -46,8 +46,8 @@ services:
       - kafka
     networks:
       synapse-net:
-        - aliases:
-            - synapse-kafka-ui
+        aliases:
+          - synapse-kafka-ui
 
   # === REDIS ===
   redis:
@@ -61,8 +61,8 @@ services:
       - redis-data:/data
     networks:
       synapse-net:
-        - aliases:
-            - synapse-redis
+        aliases:
+          - synapse-redis
 
   # === VAULT (Modo Desarrollo Local) ===
   vault:
@@ -80,8 +80,8 @@ services:
       - IPC_LOCK
     networks:
       synapse-net:
-        - aliases:
-            - synapse-vault
+        aliases:
+          - synapse-vault
 
   # === PROMETHEUS (Recolector de métricas) ===
   prometheus:
@@ -96,8 +96,8 @@ services:
       - '--storage.tsdb.retention.time=15d'
     networks:
       synapse-net:
-        - aliases:
-            - synapse-prometheus
+        aliases:
+          - synapse-prometheus
 
   # === GRAFANA (Visualización) ===
   grafana:
@@ -113,8 +113,8 @@ services:
       - prometheus
     networks:
       synapse-net:
-        - aliases:
-            - synapse-grafana
+        aliases:
+          - synapse-grafana
 
 volumes:
   vault-data:
