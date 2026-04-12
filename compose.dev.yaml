@@ -112,5 +112,5 @@ volumes:
 
 networks:
   synapse-net:
-    driver: bridge
+    external: true
     name: synapse-net
