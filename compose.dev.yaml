@@ -124,5 +124,5 @@ volumes:
 
 networks:
   synapse-net:
-    external: false
+    external: true
     name: synapse-net
