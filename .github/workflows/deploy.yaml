@@ -41,7 +41,12 @@ jobs:
           cache: 'maven'
 
       - name: Build with Maven
-        run: mvn clean package -DskipTests -s settings.xml -B
+        run: |
+          if [ -f "settings.xml" ]; then
+            mvn clean package -DskipTests -s settings.xml -B
+          else
+            mvn clean package -DskipTests -B
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
           GITHUB_USER: ${{ github.actor }}
