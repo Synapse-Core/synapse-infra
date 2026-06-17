@@ -45,7 +45,7 @@ jobs:
             mvn clean package -DskipTests -B
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          MAVEN_GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
           GITHUB_USER: ${{ github.actor }}
 
       - name: Login to GitHub Container Registry
