@@ -25,7 +25,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -55,9 +54,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -67,6 +63,8 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
+          cache-from: type=registry,ref=ghcr.io/synapse-core/${{ inputs.image_name }}:latest
+          cache-to: type=inline
           tags: ghcr.io/synapse-core/${{ inputs.image_name }}:latest
 
       - name: Deploy via SSH
@@ -78,7 +76,12 @@ jobs:
           script: |
             echo ${{ secrets.GH_PACKAGES_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ghcr.io/synapse-core/${{ inputs.image_name }}:latest
+            # Despliegue sin tiempo de inactividad (Zero Downtime)
             docker service update \
               --image ghcr.io/synapse-core/${{ inputs.image_name }}:latest \
               --with-registry-auth \
+              --update-parallelism 1 \
+              --update-delay 10s \
+              --update-order start-first \
+              --update-failure-action rollback \
               ${{ inputs.stack_name }}_${{ inputs.service_name }}
