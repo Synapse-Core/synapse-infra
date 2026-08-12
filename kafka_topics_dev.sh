@@ -14,6 +14,7 @@ TOPICS=(
   "plan_events"
   "notification_events"
   "notifyrequest_events"
+  "factura_events"
 )
 
 for TOPIC in "${TOPICS[@]}"; do
