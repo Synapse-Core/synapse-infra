@@ -54,7 +54,7 @@ services:
     container_name: synapse-redis
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-B3DkgO3vJQ8DvbOTPYx8}
     volumes:
       - redis-data:/data
     networks:
@@ -69,7 +69,7 @@ services:
     ports:
       - "8200:8200"
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-root}
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-synapse-master-token}
       VAULT_ADDR: http://0.0.0.0:8200
     volumes:
       - vault-data:/vault/file
