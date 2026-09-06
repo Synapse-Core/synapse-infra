@@ -43,7 +43,7 @@ VAULT_TOKEN=root-token bash setup_init.sh
   - `secret/application` = **global**, heredado por todos los servicios.
   - `secret/<service-name>` = específico.
 - Servicios: `iam-service`, `discovery-service`, `gateway-service`, `subscription-service`, `labquality-service`, `notify-orchestrator`, `notify-gateway`, `billing-service`, `prediction-service` (IA Python), `prediction-orchestrator-service` (Spring, ver sección abajo).
-- **`setup_init.sh`, `setup_dev_secrets.sh` y `.env.prod` están en `.gitignore`** y contienen secretos reales. NUNCA commitearlos. Sin ellos el stack no levanta correctamente.
+- **`setup_init.sh`, `setup_dev_secrets.sh`, `setup_staging_secrets.sh` y `.env.prod` están en `.gitignore`** y contienen secretos reales. NUNCA commitearlos. Sin ellos el stack no levanta correctamente.
 - Convención de claves: dev usa sufijo `_DEV` (`DB_URL_DEV`, `DB_USER_DEV`...); prod usa sin sufijo.
 
 ## Kafka
