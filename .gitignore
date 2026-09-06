@@ -9,3 +9,4 @@ dump.rdb
 setup_dev_secrets.sh
 .env.prod
 setup_init.sh
+setup_staging_secrets.sh
