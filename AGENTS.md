@@ -42,7 +42,7 @@ VAULT_TOKEN=root-token bash setup_init.sh
 - Los microservicios Spring leen de Vault vía Spring Cloud Config.
   - `secret/application` = **global**, heredado por todos los servicios.
   - `secret/<service-name>` = específico.
-- Servicios: `iam-service`, `discovery-service`, `gateway-service`, `subscription-service`, `labquality-service`, `notify-orchestrator`, `notify-gateway`, `billing-service`.
+- Servicios: `iam-service`, `discovery-service`, `gateway-service`, `subscription-service`, `labquality-service`, `notify-orchestrator`, `notify-gateway`, `billing-service`, `prediction-service` (IA Python), `prediction-orchestrator-service` (Spring, ver sección abajo).
 - **`setup_init.sh`, `setup_dev_secrets.sh` y `.env.prod` están en `.gitignore`** y contienen secretos reales. NUNCA commitearlos. Sin ellos el stack no levanta correctamente.
 - Convención de claves: dev usa sufijo `_DEV` (`DB_URL_DEV`, `DB_USER_DEV`...); prod usa sin sufijo.
 
@@ -57,6 +57,26 @@ VAULT_TOKEN=root-token bash setup_init.sh
 ## Puertos host (dev y prod)
 
 Kafka `9092` · Kafka UI `8091` · Redis `6379` · Vault `8200` · Prometheus `9090` · Grafana `3001` (admin).
+
+## prediction-service (IA, Python/FastAPI)
+
+Servicio de predicción de consumo de inventario. A diferencia de los demás (Spring), es **Python/FastAPI** y no usa Spring Cloud Config/Vault: su configuración llega por **variables de entorno** en su `compose.dev.yaml`.
+
+- **Solo interno del ecosistema Synapse**: autenticación exclusivamente con JWT HS256 de iam-service. No hay API keys ni clientes externos (cuando DataCoreALH migre a Synapse se integrará como microservicio del ecosistema).
+- Eureka app name: `prediction-service` → ruta gateway `lb://prediction-service` (predicado `/api/synapse/pred-ai/**`).
+- Autenticación: valida JWT **HS256** emitido por iam-service con el mismo `SYNAPSE_JWT_SECRET` (`${SECRET}`, base64). No usa `synapse-security-common` (Java).
+- Datos: lee las vistas `vw_product_daily_consumption`, `vw_product_annual_consumption`, etc. de **cada BD de inventario** (catálogo `INVENTORIES` en JSON).
+- Despliegue: imagen Python. Dev expone puerto 8000 solo para depurar; **prod NO expone puerto** (solo red overlay). CORS restringido a orígenes de Synapse.
+
+## prediction-orchestrator-service (Spring Boot, orquestador)
+
+Capa de entrada del módulo de predicción que consume el **frontend** (Angular) vía el Gateway en `/api/synapse/pred/**`. Orquesta la llamada al IA y enriquece la respuesta a camelCase.
+
+- Spring Boot (Java 21), `@EnableSynapseSecurity` (`synapse-security-common`), registrado en Eureka como `prediction-orchestrator-service`.
+- Ruta gateway: `/api/synapse/pred/**` (predicado `lb://prediction-orchestrator-service`).
+- Autenticación/permisos: reutiliza la seguridad del ecosistema (`@PreAuthorize("hasAuthority('PREDICCION_INVENTARIO')")`, JWT de iam). Permisos registrados en `V19__prediction_inventory_permissions.sql` de iam-service.
+- Llama a `prediction-service` vía el Gateway en la ruta interna `/api/synapse/pred-ai/**`, reenviando el JWT del usuario.
+- Config sensible en su `compose.*.yaml`: `SECRET`, `REDIS_*`, `EUREKA_URI`, `PREDICTION_AI_BASE_URL`.
 
 ## CI / Deploy
 
