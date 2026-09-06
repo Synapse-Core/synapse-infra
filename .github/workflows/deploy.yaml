@@ -1,4 +1,4 @@
-name: Reusable Deploy
+name: Reusable Multi-Environment Deploy
 
 on:
   workflow_call:
@@ -12,6 +12,14 @@ on:
       stack_name:
         required: true
         type: string
+      environment:
+        required: false
+        type: string
+        default: 'production'
+      health_url:
+        required: false
+        type: string
+        default: ''
     secrets:
       GH_PACKAGES_TOKEN:
         required: true
@@ -25,6 +33,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-${{ inputs.environment }}-${{ inputs.stack_name }}-${{ inputs.service_name }}
+      cancel-in-progress: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,12 +47,13 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build with Maven
+      # FASE 1.1: Tests unitarios e integración activos en CI (sin -DskipTests)
+      - name: Build and test with Maven
         run: |
           if [ -f "settings.xml" ]; then
-            mvn clean package -U -DskipTests -s settings.xml -B
+            mvn clean package -U -s settings.xml -B
           else
-            mvn clean package -U -DskipTests -B
+            mvn clean package -U -B
           fi
         env:
           MAVEN_GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
@@ -57,6 +69,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # FASE 1.2: Determinación de tags inmutables (SHA + Entorno + latest condicional)
+      - name: Determine Docker Tags
+        id: tags
+        run: |
+          TAGS="ghcr.io/synapse-core/${{ inputs.image_name }}:sha-${{ github.sha }}"
+          TAGS="${TAGS},ghcr.io/synapse-core/${{ inputs.image_name }}:${{ inputs.environment }}"
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            TAGS="${TAGS},ghcr.io/synapse-core/${{ inputs.image_name }}:latest"
+          fi
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -65,8 +88,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           cache-from: type=registry,ref=ghcr.io/synapse-core/${{ inputs.image_name }}:latest
           cache-to: type=inline
-          tags: ghcr.io/synapse-core/${{ inputs.image_name }}:latest
+          tags: ${{ steps.tags.outputs.tags }}
 
+      # Despliegue en Swarm usando la imagen inmutable por commit SHA
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -75,13 +99,31 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo ${{ secrets.GH_PACKAGES_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/synapse-core/${{ inputs.image_name }}:latest
-            # Despliegue sin tiempo de inactividad (Zero Downtime)
+            docker pull ghcr.io/synapse-core/${{ inputs.image_name }}:sha-${{ github.sha }}
+            
+            # Despliegue Zero Downtime con Rollback automático
             docker service update \
-              --image ghcr.io/synapse-core/${{ inputs.image_name }}:latest \
+              --image ghcr.io/synapse-core/${{ inputs.image_name }}:sha-${{ github.sha }} \
               --with-registry-auth \
               --update-parallelism 1 \
               --update-delay 10s \
               --update-order start-first \
               --update-failure-action rollback \
               ${{ inputs.stack_name }}_${{ inputs.service_name }}
+
+      # FASE 1.4: Health check post-despliegue
+      - name: Verify Service Health
+        if: ${{ inputs.health_url != '' }}
+        run: |
+          echo "Verificando salud del servicio en ${{ inputs.health_url }}..."
+          for i in {1..12}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -k "${{ inputs.health_url }}" || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Servicio saludable (HTTP 200) tras $i intentos."
+              exit 0
+            fi
+            echo "Intento $i/12: Estado HTTP $STATUS. Esperando 5s..."
+            sleep 5
+          done
+          echo "❌ Error: El servicio no respondió satisfactoriamente (HTTP 200) en el tiempo establecido."
+          exit 1
