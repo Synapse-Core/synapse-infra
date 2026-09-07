@@ -13,6 +13,8 @@ TOPICS=(
   "feature_events"
   "suscripcion_events"
   "plan_events"
+  "providerstatus_events"
+  "ticket_events"
   "notification_events"
   "notifyrequest_events"
   "factura_events"
