@@ -119,8 +119,8 @@ jobs:
               "${SERVICE}"
 
             echo "🔍 Verificando convergencia y estado de actualización de Swarm..."
-            UPDATE_STATE=$(docker service inspect --format '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}}' "${SERVICE}")
-            UPDATE_MSG=$(docker service inspect --format '{{if .UpdateStatus}}{{.UpdateStatus.Message}}{{end}}' "${SERVICE}")
+            UPDATE_STATE=$(docker service inspect --format '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{else}}converged{{end}}' "${SERVICE}")
+            UPDATE_MSG=$(docker service inspect --format '{{if .UpdateStatus}}{{.UpdateStatus.Message}}{{else}}Servicio convergido y estable sin incidentes{{end}}' "${SERVICE}")
 
             echo "Estado Swarm: [${UPDATE_STATE}] — ${UPDATE_MSG}"
 
@@ -131,7 +131,9 @@ jobs:
               exit 1
             fi
 
+            RUNNING_IMG=$(docker service inspect --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "${SERVICE}")
             RUNNING_TASK=$(docker service ps "${SERVICE}" --filter desired-state=running --format '{{.Node}} | {{.CurrentState}}' | head -n 1)
+            echo "🏷️  Imagen activa en Swarm: ${RUNNING_IMG}"
             echo "✅ Tarea activa verificada: ${RUNNING_TASK}"
 
       # FASE 1.4: Health check post-despliegue
