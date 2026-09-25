@@ -122,13 +122,14 @@ jobs:
             UPDATE_STATE=$(docker service inspect --format '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{else}}converged{{end}}' "${SERVICE}")
             UPDATE_MSG=$(docker service inspect --format '{{if .UpdateStatus}}{{.UpdateStatus.Message}}{{else}}Servicio convergido y estable sin incidentes{{end}}' "${SERVICE}")
 
-            echo "Estado Swarm: [${UPDATE_STATE}] — ${UPDATE_MSG}"
-
             if [ "$UPDATE_STATE" = "rollback_completed" ] || [ "$UPDATE_STATE" = "rollback_paused" ] || [ "$UPDATE_STATE" = "rollback_started" ]; then
               echo "❌ ERROR CRÍTICO: El nuevo contenedor falló y Swarm ejecutó un ROLLBACK automático a la versión anterior."
+              echo "Estado Swarm: [${UPDATE_STATE}] — ${UPDATE_MSG}"
               echo "Registro de tareas recientes:"
               docker service ps "${SERVICE}" --no-trunc | head -n 10
               exit 1
+            else
+              echo "✅ Estado Swarm: [OK - ${UPDATE_STATE}] — Despliegue verificado sin rollbacks."
             fi
 
             RUNNING_IMG=$(docker service inspect --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "${SERVICE}")
