@@ -20,6 +20,10 @@ on:
         required: false
         type: string
         default: ''
+      platform:
+        required: false
+        type: string
+        default: 'linux/arm64'
     secrets:
       GH_PACKAGES_TOKEN:
         required: true
@@ -85,9 +89,9 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=registry,ref=ghcr.io/synapse-core/${{ inputs.image_name }}:latest
-          cache-to: type=inline
+          platforms: ${{ inputs.platform }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: ${{ steps.tags.outputs.tags }}
 
       # Despliegue en Swarm usando la imagen inmutable por commit SHA
@@ -98,18 +102,37 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            SERVICE="${{ inputs.stack_name }}_${{ inputs.service_name }}"
+            IMAGE="ghcr.io/synapse-core/${{ inputs.image_name }}:sha-${{ github.sha }}"
+
+            echo "🔐 Actualizando credenciales en Docker Swarm Manager..."
             echo ${{ secrets.GH_PACKAGES_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/synapse-core/${{ inputs.image_name }}:sha-${{ github.sha }}
-            
-            # Despliegue Zero Downtime con Rollback automático
+
+            echo "🚀 Desplegando ${SERVICE} con imagen ${IMAGE}..."
             docker service update \
-              --image ghcr.io/synapse-core/${{ inputs.image_name }}:sha-${{ github.sha }} \
+              --image "${IMAGE}" \
               --with-registry-auth \
               --update-parallelism 1 \
               --update-delay 10s \
               --update-order start-first \
               --update-failure-action rollback \
-              ${{ inputs.stack_name }}_${{ inputs.service_name }}
+              "${SERVICE}"
+
+            echo "🔍 Verificando convergencia y estado de actualización de Swarm..."
+            UPDATE_STATE=$(docker service inspect --format '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}}' "${SERVICE}")
+            UPDATE_MSG=$(docker service inspect --format '{{if .UpdateStatus}}{{.UpdateStatus.Message}}{{end}}' "${SERVICE}")
+
+            echo "Estado Swarm: [${UPDATE_STATE}] — ${UPDATE_MSG}"
+
+            if [ "$UPDATE_STATE" = "rollback_completed" ] || [ "$UPDATE_STATE" = "rollback_paused" ] || [ "$UPDATE_STATE" = "rollback_started" ]; then
+              echo "❌ ERROR CRÍTICO: El nuevo contenedor falló y Swarm ejecutó un ROLLBACK automático a la versión anterior."
+              echo "Registro de tareas recientes:"
+              docker service ps "${SERVICE}" --no-trunc | head -n 10
+              exit 1
+            fi
+
+            RUNNING_TASK=$(docker service ps "${SERVICE}" --filter desired-state=running --format '{{.Node}} | {{.CurrentState}}' | head -n 1)
+            echo "✅ Tarea activa verificada: ${RUNNING_TASK}"
 
       # FASE 1.4: Health check post-despliegue
       - name: Verify Service Health
