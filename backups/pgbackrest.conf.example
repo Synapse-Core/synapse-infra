@@ -1,0 +1,57 @@
+[global]
+# ==============================================================================
+# Cloudflare R2 (S3 Protocol Configuration)
+# ==============================================================================
+repo1-type=s3
+repo1-s3-endpoint=b791eaff15e76e89a89f4e577bef908e.r2.cloudflarestorage.com
+repo1-s3-bucket=backups
+repo1-s3-region=auto
+repo1-s3-uri-style=path
+repo1-s3-key=8ad428561836447f0dbc47b64aeb5257
+repo1-s3-key-secret=9bc7a856c1e418ede1caaf6172f37d2a29a15ba65201a264fc35503719ba1717
+repo1-path=/pgbackrest
+
+# ==============================================================================
+# Security & Zero Trust Encryption
+# ==============================================================================
+# Native AES-256-CBC encryption on R2
+repo1-cipher-type=aes-256-cbc
+repo1-cipher-pass=${PGBACKREST_CIPHER_PASS}
+
+# ==============================================================================
+# Compression & Performance
+# ==============================================================================
+compress-type=zst
+compress-level=3
+process-max=2
+
+# ==============================================================================
+# Retention Policies
+# ==============================================================================
+repo1-retention-full=4
+repo1-retention-diff=14
+repo1-retention-archive=4
+
+# ==============================================================================
+# Logging
+# ==============================================================================
+log-level-console=info
+log-level-file=detail
+
+# ==============================================================================
+# Stanza: Core (IAM, Subscriptions, Billing)
+# ==============================================================================
+[core]
+pg1-path=/var/lib/postgresql/data
+pg1-user=synapse_admin
+pg1-database=postgres
+pg1-socket-path=/var/run/postgresql
+
+# ==============================================================================
+# Stanza: Labs (Labquality, Symes)
+# ==============================================================================
+[labs]
+pg1-path=/var/lib/postgresql/data
+pg1-user=synapse_admin
+pg1-database=postgres
+pg1-socket-path=/var/run/postgresql
