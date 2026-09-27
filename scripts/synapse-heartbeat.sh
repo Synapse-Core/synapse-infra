@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # SYNAPSE-CORE — Swarm Node Heartbeat Reporter
-# Reporta estado del nodo al OpsAgent cada 60s vía backend proxy
+# Reporta estado del nodo al OpsAgent cada 60s vía worker directo
+# El nombre del nodo se configura en el servicio systemd (Environment=SYNAPSE_NODE_NAME=xxx)
 # ==============================================================================
 set -euo pipefail
 
-OPS_BACKEND="${OPS_BACKEND_URL:-https://api-dev.synapse-tec.com}"
+OPS_WORKER="${OPS_WORKER_URL:-https://synapse-ops-worker.andresquinon25.workers.dev}"
 OPS_KEY="${OPS_INTERNAL_KEY:-synapse-ops-internal-key-secure-2026}"
-NODE_NAME="${HOSTNAME:-$(hostname)}"
-LOG_FILE="/var/log/synapse-heartbeat.log"
+
+# SYNAPSE_NODE_NAME viene del Environment= en systemd. Si no está, usar hostname.
+NODE_NAME="${SYNAPSE_NODE_NAME:-$(hostname)}"
 
 log() {
-    local msg="[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] $*"
-    echo "$msg" >> "$LOG_FILE" 2>/dev/null || true
+    echo "$*"
 }
 
 DISK_USAGE=$(df -h / 2>/dev/null | awk 'NR==2 {print $5}' || echo "N/A")
@@ -37,7 +38,7 @@ PAYLOAD=$(jq -n \
   }')
 
 RESPONSE=$(curl -s -S --max-time 10 --connect-timeout 5 \
-  -X POST "${OPS_BACKEND}/api/v1/admin/resilience/heartbeat" \
+  -X POST "${OPS_WORKER}/api/v1/ops/heartbeat" \
   -H "Content-Type: application/json" \
   -H "X-Synapse-Internal-Key: $OPS_KEY" \
   -d "$PAYLOAD" 2>&1) || true

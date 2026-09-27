@@ -5,5 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+Environment=OPS_WORKER_URL=https://synapse-ops-worker.andresquinon25.workers.dev
+Environment=OPS_INTERNAL_KEY=synapse-ops-internal-key-secure-2026
+Environment=SYNAPSE_NODE_NAME=CHANGE-ME
 ExecStart=/usr/local/bin/synapse-heartbeat.sh
 User=root
