@@ -1,0 +1,9 @@
+[Unit]
+Description=SYNAPSE Heartbeat - Reporta estado del nodo al OpsAgent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/synapse-heartbeat.sh
+User=root
