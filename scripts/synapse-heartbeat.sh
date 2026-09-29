@@ -43,7 +43,7 @@ RESPONSE=$(curl -s -S --max-time 10 --connect-timeout 5 \
   -H "X-Synapse-Internal-Key: $OPS_KEY" \
   -d "$PAYLOAD" 2>&1) || true
 
-if echo "$RESPONSE" | grep -q '"success":true'; then
+if echo "$RESPONSE" | grep -qE '"success"[[:space:]]*:[[:space:]]*true'; then
     log "Heartbeat OK: ${NODE_NAME}"
 else
     log "Heartbeat FAILED: ${NODE_NAME} - ${RESPONSE}"
