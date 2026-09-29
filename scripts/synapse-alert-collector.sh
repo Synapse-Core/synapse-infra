@@ -14,8 +14,23 @@ NODE="${2:-$(hostname)}"
 EXIT_CODE="${3:-1}"
 
 LOG_FILE="/var/log/synapse-alert-collector.log"
-OPS_ENDPOINT="https://synapse-ops-worker.andresquinon25.workers.dev/api/v1/ops/emergency-alert"
-OPS_KEY="synapse-ops-internal-key-secure-2026"
+# Credenciales en /etc/synapse/ops-worker.env (root:root 0600), NUNCA en este script:
+#   CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET  service token de Access de este nodo
+#   OPS_INTERNAL_KEY                               llave interna (solo durante la transición)
+# Con service token se entra por ops.synapse-tec.com (detrás de Cloudflare Access);
+# sin él, por workers.dev como antes, para no cortar el reporte mientras se migra.
+OPS_ENV_FILE="${OPS_ENV_FILE:-/etc/synapse/ops-worker.env}"
+# shellcheck disable=SC1090
+[ -r "$OPS_ENV_FILE" ] && . "$OPS_ENV_FILE"
+AUTH_HEADERS=()
+if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+  OPS_WORKER="${OPS_WORKER_URL:-https://ops.synapse-tec.com}"
+  AUTH_HEADERS+=(-H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}")
+else
+  OPS_WORKER="${OPS_WORKER_URL:-https://synapse-ops-worker.andresquinon25.workers.dev}"
+fi
+[ -n "${OPS_INTERNAL_KEY:-}" ] && AUTH_HEADERS+=(-H "X-Synapse-Internal-Key: ${OPS_INTERNAL_KEY}")
+OPS_ENDPOINT="${OPS_WORKER}/api/v1/ops/emergency-alert"
 
 # Helper de logging dual (stdout/stderr + log file local)
 log() {
@@ -66,12 +81,13 @@ PAYLOAD=$(jq -n \
   }')
 
 # 4. Despacho HTTP a Cloudflare OpsAgent (timeout 10s)
+# `|| CURL_STATUS=$?`: con set -e, un curl fallido abortaba el script antes de registrar el error.
+CURL_STATUS=0
 RESPONSE=$(curl -s -S --max-time 10 --connect-timeout 5 \
   -X POST "$OPS_ENDPOINT" \
   -H "Content-Type: application/json" \
-  -H "X-Synapse-Internal-Key: $OPS_KEY" \
-  -d "$PAYLOAD" 2>&1)
-CURL_STATUS=$?
+  "${AUTH_HEADERS[@]}" \
+  -d "$PAYLOAD" 2>&1) || CURL_STATUS=$?
 
 if [ $CURL_STATUS -eq 0 ]; then
     log "Despacho exitoso a ops-worker: ${RESPONSE}"

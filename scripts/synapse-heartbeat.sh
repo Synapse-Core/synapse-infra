@@ -6,8 +6,22 @@
 # ==============================================================================
 set -euo pipefail
 
-OPS_WORKER="${OPS_WORKER_URL:-https://synapse-ops-worker.andresquinon25.workers.dev}"
-OPS_KEY="${OPS_INTERNAL_KEY:-synapse-ops-internal-key-secure-2026}"
+# Credenciales en /etc/synapse/ops-worker.env (root:root 0600), NUNCA en este script:
+#   CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET  service token de Access de este nodo
+#   OPS_INTERNAL_KEY                               llave interna (solo durante la transición)
+# Con service token se entra por ops.synapse-tec.com (detrás de Cloudflare Access);
+# sin él, por workers.dev como antes, para no cortar el reporte mientras se migra.
+OPS_ENV_FILE="${OPS_ENV_FILE:-/etc/synapse/ops-worker.env}"
+# shellcheck disable=SC1090
+[ -r "$OPS_ENV_FILE" ] && . "$OPS_ENV_FILE"
+AUTH_HEADERS=()
+if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+  OPS_WORKER="${OPS_WORKER_URL:-https://ops.synapse-tec.com}"
+  AUTH_HEADERS+=(-H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}")
+else
+  OPS_WORKER="${OPS_WORKER_URL:-https://synapse-ops-worker.andresquinon25.workers.dev}"
+fi
+[ -n "${OPS_INTERNAL_KEY:-}" ] && AUTH_HEADERS+=(-H "X-Synapse-Internal-Key: ${OPS_INTERNAL_KEY}")
 
 # SYNAPSE_NODE_NAME viene del Environment= en systemd. Si no está, usar hostname.
 NODE_NAME="${SYNAPSE_NODE_NAME:-$(hostname)}"
@@ -40,7 +54,7 @@ PAYLOAD=$(jq -n \
 RESPONSE=$(curl -s -S --max-time 10 --connect-timeout 5 \
   -X POST "${OPS_WORKER}/api/v1/ops/heartbeat" \
   -H "Content-Type: application/json" \
-  -H "X-Synapse-Internal-Key: $OPS_KEY" \
+  "${AUTH_HEADERS[@]}" \
   -d "$PAYLOAD" 2>&1) || true
 
 if echo "$RESPONSE" | grep -qE '"success"[[:space:]]*:[[:space:]]*true'; then
