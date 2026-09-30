@@ -1,0 +1,18 @@
+[Unit]
+Description=SYNAPSE Docker Events - reenvía die/oom/health_status al centinela (ops-worker)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+# SYNAPSE_NODE_NAME se ajusta por nodo (synapse, synapse-1, synapse-dev), igual que el heartbeat.
+Environment=SYNAPSE_NODE_NAME=%H
+ExecStart=/usr/local/bin/synapse-docker-events.sh
+Restart=always
+RestartSec=5
+User=root
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
