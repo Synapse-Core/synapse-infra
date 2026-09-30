@@ -1,0 +1,10 @@
+[Unit]
+Description=SYNAPSE socket-proxy watchdog - cada 60 segundos
+
+[Timer]
+OnBootSec=90
+OnUnitActiveSec=60
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
