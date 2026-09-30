@@ -1,0 +1,10 @@
+[Unit]
+Description=SYNAPSE socket-proxy watchdog - recrea el socket de Alloy si Swarm lo borró
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/synapse-socket-proxy-watchdog.sh
+User=root
+Nice=10
