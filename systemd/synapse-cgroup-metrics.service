@@ -1,0 +1,10 @@
+[Unit]
+Description=SYNAPSE cgroup metrics - memoria por contenedor para Alloy (textfile)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/synapse-cgroup-metrics.sh
+User=root
+Nice=10
