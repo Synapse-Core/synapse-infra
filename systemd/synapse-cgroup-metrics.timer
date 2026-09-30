@@ -1,0 +1,10 @@
+[Unit]
+Description=SYNAPSE cgroup metrics - cada 30 segundos
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=30
+AccuracySec=2s
+
+[Install]
+WantedBy=timers.target
